@@ -654,11 +654,11 @@ void output_stress(int t, double p, double sxy0, double sxy, double gamma, doubl
   std::ofstream file;
   if (deltaphi_observe > 0.0)
   {
-    sprintf(filename, "stress_OS2_ajam_dphi%1.1e_g%1.1e_o%1.2e_%dcycle.dat", fabs(deltaphi_observe), gamma0, omega, cycle);
+    sprintf(filename, "stress_OS_ajam_dphi%1.1e_g%1.1e_o%1.2e_%dcycle.dat", fabs(deltaphi_observe), gamma0, omega, cycle);
   }
   else
   {
-    sprintf(filename, "stress_OS2_bjam_dphi%1.1e_g%1.1e_o%1.2e_%dcycle.dat", fabs(deltaphi_observe), gamma0, omega, cycle);
+    sprintf(filename, "stress_OS_bjam_dphi%1.1e_g%1.1e_o%1.2e_%dcycle.dat", fabs(deltaphi_observe), gamma0, omega, cycle);
   }
   file.open(filename, ios::app);
   file << setprecision(10) << t << "\t" << gamma << "\t" << p << "\t" << sxy - sxy0 << endl;
@@ -671,11 +671,11 @@ void output_modulus(double G1, double G2, double omega, int cycle)
   ofstream file;
   if (deltaphi_observe > 0.0)
   {
-    sprintf(filename, "modulus_OS2_ajam_dphi%1.1e_g%1.1e_o%1.2e.dat", fabs(deltaphi_observe), gamma0, omega);
+    sprintf(filename, "modulus_OS_ajam_dphi%1.1e_g%1.1e_o%1.2e.dat", fabs(deltaphi_observe), gamma0, omega);
   }
   else
   {
-    sprintf(filename, "modulus_OS2_bjam_dphi%1.1e_g%1.1e_o%1.2e.dat", fabs(deltaphi_observe), gamma0, omega);
+    sprintf(filename, "modulus_OS_bjam_dphi%1.1e_g%1.1e_o%1.2e.dat", fabs(deltaphi_observe), gamma0, omega);
   }
   file.open(filename, ios::app);
   file << setprecision(10) << cycle << "\t" << G1 << "\t" << G2 << endl;
@@ -863,7 +863,7 @@ int main()
     // cout << "end " << cnt_train << " times of training" << endl;
   }
 
-  // find phiJ
+  // Find phiJ
   init_scalar_kernel<<<1, 1>>>(deltaphi_dev, -1.e-4);
   for (;;)
   {
@@ -927,7 +927,7 @@ int main()
     //  cout << "time(sec):" << sec << endl;
   }
 
-  // set phi=phiJ+deltaphi
+  // Set phi=phiJ+deltaphi
   // init_scalar_kernel<<<1, 1>>>(phi_dev, phi + deltaphi_observe);
   init_scalar_kernel<<<1, 1>>>(deltaphi_dev, deltaphi_change);
   for (double dphi = 0.0; abs(dphi) < abs(deltaphi_observe); dphi += deltaphi_change)
@@ -963,7 +963,7 @@ int main()
   // cout << "---------- END ----------" << endl;
   ///////////////////////////////////
 
-  // oscillatory shear
+  // Oscillatory shear
   // cout << "start oscillatory shear" << endl;
   init_scalar_kernel<<<1, 1>>>(dt_dev, 0.1);
   while (omega < 1.0e-1 + 0.001)
@@ -984,9 +984,9 @@ int main()
 
         // check shear effect
         calc_energy_kernel<<<NB, NT>>>(x_dev, y_dev, pressure_dev, stress_dev, pot_dev, a_dev, L_dev, list_dev, gamma_dev);
-        add_reduction_array(pot_dev, reduce_dev, remain_dev);
+        add_reduction_array(pressure_dev, reduce_dev, remain_dev);
         add_reduction_array(stress_dev, reduce_dev, remain_dev);
-        cudaMemcpy(pot, pot_dev, NB * NT * sizeof(double), cudaMemcpyDeviceToHost);
+        cudaMemcpy(pressure, pot_dev, NB * NT * sizeof(double), cudaMemcpyDeviceToHost);
         cudaMemcpy(stress, stress_dev, NB * NT * sizeof(double), cudaMemcpyDeviceToHost);
         cudaMemcpy(&gamma, gamma_dev, sizeof(double), cudaMemcpyDeviceToHost);
 
@@ -1006,7 +1006,7 @@ int main()
           /*cout << "t=" << t << "\t"
                << "gamma=" << gamma << "\t"
                << "stress=" << stress[0] - init_stress[0] << endl;*/
-          output_stress(t, pot[0], init_stress[0], stress[0], gamma, omega, cycle);
+          output_stress(t, pressure[0], init_stress[0], stress[0], gamma, omega, cycle);
           out += 10000;
         }
       }
@@ -1014,12 +1014,13 @@ int main()
       output_modulus(G1, G2, omega, cycle);
       G1 = 0.0;
       G2 = 0.0;
+      t = 0.0;
       step = 0;
       out = 10000;
     }
     // cout << "omega=" << omega << " was completed" << endl;
-    dt *= pow(10.0, -0.1);
-    omega *= pow(10.0, 0.1);
+    dt *= pow(10.0, -1.0);
+    omega *= pow(10.0, 1.0);
     init_scalar_kernel<<<1, 1>>>(dt_dev, dt);
   }
   // cout << "all simulation finished!!" << endl;
